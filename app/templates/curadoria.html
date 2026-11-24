@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block titulo %}Curadoria{% endblock %}
+{% block conteudo %}
+<h2>Fila de curadoria das correções</h2>
+<p class="dica">Nenhuma correção entra na base de treino sem a sua aprovação (evita contaminação do retreinamento).
+Aprovadas e sem pendências na mesma placa podem ser exportadas em formato YOLO (também importável no Label Studio / CVAT).</p>
+<div class="filtros">
+  <div><label for="st">Mostrar</label><select id="st"><option value="pendente">Pendentes</option><option value="aprovada">Aprovadas</option><option value="rejeitada">Rejeitadas</option></select></div>
+  <div><button class="btn" id="exportar">Exportar aprovadas para retreino</button></div>
+</div>
+<div id="msg" aria-live="polite"></div>
+<section class="cartao"><div id="lista">Carregando…</div></section>
+{% endblock %}
+{% block scripts %}<script src="/static/curadoria.js"></script>{% endblock %}

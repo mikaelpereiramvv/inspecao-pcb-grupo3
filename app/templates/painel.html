@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block titulo %}Painel de Indicadores{% endblock %}
+{% block conteudo %}
+<h2>Painel de indicadores agregados</h2>
+<p class="dica">Totais por tipo, lote, turno, posto e etapa de origem. Por desenho (LGPD), não há indicadores por inspetor.</p>
+<form class="filtros" id="filtros">
+  <div><label for="f-lote">Lote</label><input id="f-lote" name="lote"></div>
+  <div><label for="f-turno">Turno</label><select id="f-turno" name="turno"><option value="">Todos</option><option>A</option><option>B</option><option>C</option></select></div>
+  <div><label for="f-desde">Desde</label><input id="f-desde" name="desde" type="date"></div>
+  <div><label for="f-ate">Até</label><input id="f-ate" name="ate" type="date"></div>
+  <div><button class="btn" type="submit">Filtrar</button></div>
+</form>
+<section aria-labelledby="t-alertas" class="cartao" style="margin-bottom:1rem">
+  <h2 id="t-alertas">Alertas de reincidência para a etapa de origem</h2>
+  <div id="alertas" aria-live="polite">Carregando…</div>
+</section>
+<div class="kpis" id="kpis"></div>
+<div class="duas">
+  <section class="cartao"><h2>Defeitos por tipo</h2><div id="por-tipo"></div></section>
+  <section class="cartao"><h2>Por lote</h2><div id="por-lote"></div></section>
+  <section class="cartao"><h2>Por turno</h2><div id="por-turno"></div></section>
+  <section class="cartao"><h2>Por etapa de origem</h2><div id="por-etapa"></div></section>
+  <section class="cartao"><h2>Por posto</h2><div id="por-posto"></div></section>
+  <section class="cartao"><h2>Correções do inspetor (calibração do modelo)</h2><div id="correcoes"></div></section>
+</div>
+{% endblock %}
+{% block scripts %}<script src="/static/painel.js"></script>{% endblock %}

@@ -79,6 +79,7 @@ def criar_app(cfg: Config | None = None, servico: ServicoInspecao | None = None)
 
     @app.post("/login")
     def login(request: Request, perfil: str = Form(...), codigo: str = Form(""), pin: str = Form("")):
+        request.session.clear()  # tentativa de login sempre encerra a sessão anterior
         if perfil not in PERFIS:
             return RedirectResponse("/?erro=Perfil+inválido", status_code=303)
         if perfil == "inspetor":
