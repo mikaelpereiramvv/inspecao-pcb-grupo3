@@ -5,7 +5,7 @@ const TIPOS = { falso_positivo: 'Falso positivo (inspetor disse que não é defe
 const nome = c => c === 'outro' ? 'Outro' : (ROTULOS[c] || c || '—');
 
 async function recorte(cv, c) {
-  const im = new Image(); im.src = `/api/inspecoes/${c.inspecao_id}/imagem/original`; await im.decode();
+  const im = new Image(); im.src = `/api/inspecoes/${c.inspecao_id}/imagem/exibicao`; await im.decode();
   const g = cv.getContext('2d'); const m = 40;
   const x = Math.max(0, c.x1 - m), y = Math.max(0, c.y1 - m), w = Math.min(600, c.x2 + m) - x, h = Math.min(600, c.y2 + m) - y;
   const s = Math.min(cv.width / w, cv.height / h);

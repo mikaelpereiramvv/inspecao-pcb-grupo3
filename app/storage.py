@@ -12,6 +12,11 @@ from contextlib import contextmanager
 from pathlib import Path
 
 
+# original = imagem recebida (resolução da câmera); exibicao = 600×600 padronizada
+# (referência das coordenadas no banco); anotada = exibicao + marcações
+SUFIXOS = ("original", "exibicao", "anotada")
+
+
 class Storage:
     def __init__(self, pasta: Path):
         self.pasta = Path(pasta)
@@ -23,7 +28,7 @@ class Storage:
     def caminho(self, id_imagem: str, sufixo: str) -> Path:
         if not id_imagem.isalnum():
             raise ValueError("ID de imagem inválido")
-        if sufixo not in ("original", "anotada"):
+        if sufixo not in SUFIXOS:
             raise ValueError("Sufixo inválido")
         return self.pasta / id_imagem[:2] / f"{id_imagem}_{sufixo}.png"
 
@@ -42,7 +47,7 @@ class Storage:
         return self.caminho(id_imagem, sufixo).read_bytes()
 
     def remover(self, id_imagem: str) -> None:
-        for suf in ("original", "anotada"):
+        for suf in SUFIXOS:
             p = self.caminho(id_imagem, suf)
             if p.exists():
                 p.unlink()

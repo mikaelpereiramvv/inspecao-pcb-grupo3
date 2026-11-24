@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block titulo %}Teste com voluntários{% endblock %}
+{% block conteudo %}
+<div class="cartao" id="inicio" style="max-width:640px;margin:auto">
+  <h2>Teste controlado – sessão {{ sessao }}</h2>
+  <p>Você verá <b>20 placas</b>, com até <b>30 segundos</b> cada. Em algumas, o assistente mostra sugestões;
+     em outras, não. <b>Clique sobre cada defeito que você encontrar</b> (clique de novo para desfazer).
+     As sugestões podem estar erradas: confira sempre.</p>
+  <label for="participante">Código do participante (ex.: V01, sem nome)</label>
+  <input id="participante" maxlength="32" autocomplete="off">
+  <button class="btn largo" id="comecar">Começar</button>
+  <div id="msg-ini"></div>
+</div>
+<div id="tarefa" hidden>
+  <div class="barra-visor">
+    <b id="titulo-placa"></b><span class="tag" id="condicao"></span>
+    <label for="zoom-t">Zoom <input id="zoom-t" type="range" min="1" max="3" step="0.25" value="1"></label>
+    <span class="cronometro" id="crono-t">30s</span>
+    <button class="btn" id="concluir">Concluir placa ▸</button>
+  </div>
+  <div class="visor" style="max-height:78vh"><canvas id="tela-t" aria-label="Placa para inspeção"></canvas></div>
+  <p class="dica">Marcados: <span id="n-cliques">0</span>. Linha contínua = sugestão com confiança alta; tracejada = baixa.</p>
+</div>
+<div class="cartao" id="questionario" hidden style="max-width:640px;margin:auto">
+  <h2>Questionário final</h2>
+  <fieldset><legend>Facilidade de uso da interface (1 = muito difícil, 5 = muito fácil)</legend>
+    {% for n in range(1,6) %}<label style="display:inline-block;margin-right:1rem"><input type="radio" name="usab" value="{{ n }}" style="width:auto"> {{ n }}</label>{% endfor %}
+  </fieldset>
+  <fieldset><legend>Você percebeu alguma sugestão errada do assistente?</legend>
+    <label style="display:inline-block;margin-right:1rem"><input type="radio" name="notou" value="sim" style="width:auto"> Sim</label>
+    <label style="display:inline-block;margin-right:1rem"><input type="radio" name="notou" value="nao" style="width:auto"> Não</label>
+    <label style="display:inline-block"><input type="radio" name="notou" value="nao_sei" style="width:auto"> Não sei</label>
+  </fieldset>
+  <label for="coment">Comentário (opcional)</label><textarea id="coment" rows="3" maxlength="1000"></textarea>
+  <button class="btn largo" id="enviar">Enviar</button>
+  <div id="msg-q"></div>
+</div>
+{% endblock %}
+{% block scripts %}<script>const SESSAO = {{ sessao|tojson }};</script><script src="/static/teste.js"></script>{% endblock %}

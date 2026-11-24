@@ -55,7 +55,7 @@ async function mostrar(r, nova) {
   if (nova) { descartadas = new Set(); reclass = {}; adicionadas = []; iniciarCrono(); }
   else { descartadas = new Set(); reclass = {}; }  // após reanálise as marcações mudam
   [imgAnotada, imgOriginal] = await Promise.all([
-    carregarImg(`/api/inspecoes/${r.id}/imagem/anotada`), carregarImg(`/api/inspecoes/${r.id}/imagem/original`)]);
+    carregarImg(`/api/inspecoes/${r.id}/imagem/anotada`), carregarImg(`/api/inspecoes/${r.id}/imagem/exibicao`)]);
   $('vazio').hidden = true; tela.hidden = false;
   renderSugestao(); renderLista(); desenhar();
   document.querySelectorAll('.decisoes button').forEach(b => b.disabled = false);

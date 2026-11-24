@@ -126,3 +126,52 @@ class DetectorYOLO:
                 saida.append(Deteccao(nome, float(c), float(x1), float(y1), float(x2), float(y2)))
         saida.sort(key=lambda d: d.confianca, reverse=True)
         return saida
+
+
+# ---------------------------------------------------------------------------
+# Inferência em blocos (placas inteiras de alta resolução)
+# ---------------------------------------------------------------------------
+# As placas inteiras do HRIPCB têm ~3000×1600 px e defeitos de poucos pixels.
+# Reduzir a placa inteira para 600×600 apagaria esses defeitos, então a placa
+# é percorrida em blocos de 600×600 na resolução original (mesmo tamanho dos
+# recortes de treino de Mitoso e Melo, 2025) e as caixas são unidas por NMS.
+
+def _iou(a: Deteccao, b: Deteccao) -> float:
+    x1, y1 = max(a.x1, b.x1), max(a.y1, b.y1)
+    x2, y2 = min(a.x2, b.x2), min(a.y2, b.y2)
+    inter = max(0.0, x2 - x1) * max(0.0, y2 - y1)
+    ua = (a.x2 - a.x1) * (a.y2 - a.y1) + (b.x2 - b.x1) * (b.y2 - b.y1) - inter
+    return inter / ua if ua > 0 else 0.0
+
+
+def nms(deteccoes: list[Deteccao], iou_max: float = 0.5) -> list[Deteccao]:
+    mantidas: list[Deteccao] = []
+    for d in sorted(deteccoes, key=lambda d: d.confianca, reverse=True):
+        if all(d.classe != m.classe or _iou(d, m) < iou_max for m in mantidas):
+            mantidas.append(d)
+    return mantidas
+
+
+def posicoes_blocos(total: int, bloco: int, passo: int) -> list[int]:
+    if total <= bloco:
+        return [0]
+    pos = list(range(0, total - bloco + 1, passo))
+    if pos[-1] != total - bloco:
+        pos.append(total - bloco)
+    return pos
+
+
+def detectar_em_blocos(detector: DetectorDefeitos, bgr: np.ndarray, conf_minima: float, bloco: int = 600,
+                       sobreposicao: float = 0.2) -> list[Deteccao]:
+    """Detecta na resolução original, em blocos com sobreposição. Coordenadas na imagem original."""
+    h, w = bgr.shape[:2]
+    if h <= bloco and w <= bloco:
+        return detector.detectar(bgr, conf_minima)
+    passo = max(1, int(bloco * (1 - sobreposicao)))
+    todas: list[Deteccao] = []
+    for y in posicoes_blocos(h, bloco, passo):
+        for x in posicoes_blocos(w, bloco, passo):
+            recorte = bgr[y:y + bloco, x:x + bloco]
+            for d in detector.detectar(np.ascontiguousarray(recorte), conf_minima):
+                todas.append(Deteccao(d.classe, d.confianca, d.x1 + x, d.y1 + y, d.x2 + x, d.y2 + y, d.origem))
+    return nms(todas)

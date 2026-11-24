@@ -14,7 +14,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import curation, dashboard, lgpd, metadata
+from . import curation, dashboard, lgpd, metadata, teste_humano
 from .config import CLASSES, PERFIS, ROTULOS_PT, Config, carregar
 from .preprocess import ImagemInvalida
 from .service import ErroFluxo, ServicoInspecao
@@ -214,6 +214,40 @@ def criar_app(cfg: Config | None = None, servico: ServicoInspecao | None = None)
             curation.curar(srv().con, id_corr, body.aprovar, body.obs)
         except curation.ErroCuradoria as e:
             raise HTTPException(409, str(e))
+        return {"ok": True}
+
+    # ------------------------------------------- teste controlado com voluntários
+    @app.get("/teste/{sessao}", response_class=HTMLResponse)
+    def pagina_teste(request: Request, sessao: str, s=Depends(exige("supervisor", "tecnico"))):
+        try:
+            teste_humano.carregar_sessao(cfg.pasta_teste, sessao)
+        except teste_humano.ErroTeste as e:
+            raise HTTPException(404, str(e))
+        return tpl.TemplateResponse(request, "teste.html", ctx(s, sessao=sessao))
+
+    @app.get("/api/teste/{sessao}/plano")
+    def api_teste_plano(sessao: str, participante: str, s=Depends(exige("supervisor", "tecnico"))):
+        try:
+            return teste_humano.plano_publico(teste_humano.carregar_sessao(cfg.pasta_teste, sessao), participante)
+        except teste_humano.ErroTeste as e:
+            raise HTTPException(422, str(e))
+
+    @app.get("/api/teste/{sessao}/img/{arquivo}")
+    def api_teste_img(sessao: str, arquivo: str, s=Depends(exige("supervisor", "tecnico"))):
+        try:
+            p = teste_humano.caminho_imagem(cfg.pasta_teste, sessao, arquivo)
+        except teste_humano.ErroTeste as e:
+            raise HTTPException(422, str(e))
+        if not p.exists():
+            raise HTTPException(404, "Imagem não encontrada.")
+        return Response(p.read_bytes(), media_type="image/png")
+
+    @app.post("/api/teste/{sessao}/resultado")
+    async def api_teste_resultado(sessao: str, request: Request, s=Depends(exige("supervisor", "tecnico"))):
+        try:
+            teste_humano.salvar_resultado(cfg.pasta_teste, sessao, await request.json())
+        except (teste_humano.ErroTeste, TypeError, ValueError) as e:
+            raise HTTPException(422, str(e))
         return {"ok": True}
 
     return app

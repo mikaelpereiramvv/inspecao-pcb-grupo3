@@ -63,6 +63,8 @@ class Config:
     pesos_yolo: Path = field(
         default_factory=lambda: Path(os.environ.get("PCB_PESOS_YOLO", RAIZ / "modelos" / "yolo_pcb.pt"))
     )
+    # Placas maiores que 1,5× o tamanho padrão são analisadas em blocos 600×600 na resolução original
+    inferencia_blocos: bool = field(default_factory=lambda: os.environ.get("PCB_BLOCOS", "1") != "0")
     conf_minima_deteccao: float = field(default_factory=lambda: _env_float("PCB_CONF_MIN", 0.25))
 
     # Decisão aberta 9.1: limiar abaixo do qual o sistema sugere "Revisar" (ex.: < 70%).
@@ -115,6 +117,11 @@ class Config:
     # Pasta onde a curadoria exporta o novo dataset para retreinamento
     pasta_curadoria: Path = field(
         default_factory=lambda: Path(os.environ.get("PCB_CURADORIA", RAIZ / "data" / "curadoria_yolo"))
+    )
+
+    # Teste controlado com voluntários (Seção 10, aspectos 4 e 5)
+    pasta_teste: Path = field(
+        default_factory=lambda: Path(os.environ.get("PCB_TESTE", RAIZ / "data" / "teste_humano"))
     )
 
 

@@ -26,7 +26,7 @@ from .annotate import anotar
 from .anomaly import RepositorioAnomalias, ResultadoAnomalia
 from .config import CLASSES, Config
 from .db import conectar
-from .detector import Deteccao, DetectorDefeitos, DetectorIndisponivel, DetectorYOLO
+from .detector import Deteccao, DetectorDefeitos, DetectorIndisponivel, DetectorYOLO, detectar_em_blocos
 from .metadata import Metadados
 from .storage import Storage
 from .suggestion import Sugestao, sugerir
@@ -105,25 +105,37 @@ class ServicoInspecao:
         }
 
     # ------------------------------------------------------------ análise
-    def _analisar(self, bgr: np.ndarray, modelo_placa: str, limiar: float, conf_minima: float):
-        deteccoes = self.detector.detectar(bgr, conf_minima)
+    def _analisar(self, original: np.ndarray, modelo_placa: str, limiar: float, conf_minima: float,
+                  contraste: bool = False):
+        """Retorna (detecções no referencial 600×600, anomalia, sugestão, imagem de exibição)."""
+        prep = preprocess.preparar(original, self.cfg.tamanho_imagem)
+        exib = prep.bgr
+        h, w = original.shape[:2]
+        if self.cfg.inferencia_blocos and max(h, w) > 1.5 * self.cfg.tamanho_imagem:
+            entrada = preprocess.ajustar_contraste(original) if contraste else original
+            brutas = detectar_em_blocos(self.detector, entrada, conf_minima, self.cfg.tamanho_imagem)
+            deteccoes = [Deteccao(d.classe, d.confianca, d.x1 / prep.escala_x, d.y1 / prep.escala_y,
+                                  d.x2 / prep.escala_x, d.y2 / prep.escala_y) for d in brutas]
+        else:
+            entrada = preprocess.ajustar_contraste(exib) if contraste else exib
+            deteccoes = self.detector.detectar(entrada, conf_minima)
         anomalia: ResultadoAnomalia | None = None
         det_anom = self.anomalias.obter(modelo_placa)
         if det_anom is not None:
-            anomalia = det_anom.pontuar(bgr)
+            anomalia = det_anom.pontuar(exib)
             # Regiões já explicadas por um defeito conhecido não são repetidas como anomalia
             caixas = [(d.x1, d.y1, d.x2, d.y2) for d in deteccoes]
             anomalia.regioes = [r for r in anomalia.regioes
                                 if not any(_sobreposicao(r, c) > 0.3 or _sobreposicao(c, r) > 0.5 for c in caixas)]
             anomalia.anomala = bool(anomalia.regioes)
         sug = sugerir(deteccoes, anomalia, limiar)
-        return deteccoes, anomalia, sug
+        return deteccoes, anomalia, sug, exib
 
     def inspecionar(self, conteudo: bytes, meta: Metadados, codigo_inspetor: str) -> ResultadoInspecao:
         meta.validar()
         pseudo = lgpd.pseudonimizar(codigo_inspetor, self.cfg.segredo_pseudonimo)
         img = preprocess.decodificar(conteudo)
-        prep = preprocess.preparar(img, self.cfg.tamanho_imagem)
+        exib = preprocess.preparar(img, self.cfg.tamanho_imagem).bgr  # valida integridade antes de tudo
 
         avisos: list[str] = []
         fora_contexto = bool(self.cfg.modelos_placa_validados) and \
@@ -139,8 +151,8 @@ class ServicoInspecao:
         deteccoes: list[Deteccao] = []
         anomalia = None
         try:
-            deteccoes, anomalia, sug = self._analisar(prep.bgr, meta.modelo_placa, self.cfg.limiar_revisar,
-                                                      self.cfg.conf_minima_deteccao)
+            deteccoes, anomalia, sug, exib = self._analisar(img, meta.modelo_placa, self.cfg.limiar_revisar,
+                                                            self.cfg.conf_minima_deteccao)
         except DetectorIndisponivel as e:
             modo = "contingencia"
             sug = Sugestao(None, "Assistente indisponível – siga o procedimento de inspeção visual manual.")
@@ -152,12 +164,13 @@ class ServicoInspecao:
             avisos.append("Sem detector de anomalias para este modelo de placa: apenas os 6 defeitos conhecidos são verificados.")
 
         regioes = anomalia.regioes if anomalia else []
-        anotada = anotar(prep.bgr, deteccoes, regioes, self.cfg.limiar_revisar)
+        anotada = anotar(exib, deteccoes, regioes, self.cfg.limiar_revisar)
 
         id_insp = self.storage.novo_id()
         with self._lock, self.storage.transacao(id_insp):
             # 1º disco (com fsync), 2º banco – ver storage.py
-            self.storage.gravar(id_insp, "original", preprocess.codificar_png(prep.bgr))
+            self.storage.gravar(id_insp, "original", preprocess.codificar_png(img))
+            self.storage.gravar(id_insp, "exibicao", preprocess.codificar_png(exib))
             self.storage.gravar(id_insp, "anotada", preprocess.codificar_png(anotada))
             with self.con:
                 self.con.execute(
@@ -188,17 +201,17 @@ class ServicoInspecao:
             raise ErroFluxo("Limite de 1 reprocessamento atingido. Decida: Aprovar, Revisar 2ª vez ou Reprovar.")
 
         modo = self.cfg.reprocessamento_modo
-        bgr = cv2.imdecode(np.frombuffer(self.storage.ler(id_insp, "original"), np.uint8), cv2.IMREAD_COLOR)
-        entrada = preprocess.ajustar_contraste(bgr) if modo in ("contraste", "ambos") else bgr
+        original = cv2.imdecode(np.frombuffer(self.storage.ler(id_insp, "original"), np.uint8), cv2.IMREAD_COLOR)
+        contraste = modo in ("contraste", "ambos")
         limiar = self.cfg.limiar_revisar
         conf_min = self.cfg.conf_minima_deteccao
         if modo in ("limiar", "ambos"):
             conf_min = max(0.05, conf_min - self.cfg.reprocessamento_reducao_limiar)
 
         t0 = time.perf_counter()
-        fut = self._executor.submit(self._analisar, entrada, linha["modelo_placa"], limiar, conf_min)
+        fut = self._executor.submit(self._analisar, original, linha["modelo_placa"], limiar, conf_min, contraste)
         try:
-            deteccoes, anomalia, sug = fut.result(timeout=self.cfg.reprocessamento_timeout_s)
+            deteccoes, anomalia, sug, exib = fut.result(timeout=self.cfg.reprocessamento_timeout_s)
         except FuturesTimeout:
             with self._lock, self.con:
                 self.con.execute("UPDATE inspecoes SET reprocessamentos = reprocessamentos + 1 WHERE id = ?", (id_insp,))
@@ -209,7 +222,7 @@ class ServicoInspecao:
         latencia_ms = (time.perf_counter() - t0) * 1000
 
         regioes = anomalia.regioes if anomalia else []
-        anotada = anotar(bgr, deteccoes, regioes, limiar)  # anota sobre a imagem original
+        anotada = anotar(exib, deteccoes, regioes, limiar)  # marcações sobre a imagem sem ajuste
         with self._lock:
             self.storage.gravar(id_insp, "anotada", preprocess.codificar_png(anotada))
             with self.con:

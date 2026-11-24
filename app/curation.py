@@ -85,7 +85,7 @@ def exportar_yolo(con: sqlite3.Connection, storage: Storage, pasta: Path, tamanh
             w = (b["x2"] - b["x1"]) / tamanho
             h = (b["y2"] - b["y1"]) / tamanho
             linhas.append(f"{CLASSES.index(b['tipo'])} {cx:.6f} {cy:.6f} {w:.6f} {h:.6f}")
-        (pasta / "images" / f"{id_insp}.png").write_bytes(storage.ler(id_insp, "original"))
+        (pasta / "images" / f"{id_insp}.png").write_bytes(storage.ler(id_insp, "exibicao"))
         (pasta / "labels" / f"{id_insp}.txt").write_text("\n".join(linhas) + ("\n" if linhas else ""))
         n_caixas += len(linhas)
         with con:

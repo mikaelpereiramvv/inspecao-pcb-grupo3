@@ -150,3 +150,26 @@ def test_fora_do_contexto(cfg, det_padrao):
     m = meta(); m.modelo_placa = "OUTRA"
     r = s.inspecionar(png(placa_sintetica()), m, "INSP-01")
     assert r.fora_contexto and r.avisos
+
+
+def test_placa_grande_usa_blocos(cfg):
+    import numpy as np
+    from app.detector import detectar_em_blocos
+
+    class DetBloco(DetectorFalso):
+        def detectar(self, bgr, conf_minima):
+            self.chamadas.append(bgr.shape)
+            return [Deteccao("short", 0.9, 10, 10, 30, 30)]
+
+    d = DetBloco()
+    grande = np.zeros((1600, 3000, 3), np.uint8)
+    res = detectar_em_blocos(d, grande, 0.25, 600)
+    assert all(sh[:2] == (600, 600) for sh in d.chamadas) and len(d.chamadas) > 10
+    assert len(res) == len(d.chamadas)  # caixas em posições distintas não são fundidas
+
+    s = ServicoInspecao(cfg, detector=DetBloco())
+    import cv2
+    img = cv2.resize(placa_sintetica(), (3000, 1600))
+    r = s.inspecionar(png(img), meta(), "INSP-01")
+    assert all(0 <= x.x2 <= 600 and 0 <= x.y2 <= 600 for x in r.deteccoes)
+    assert s.storage.caminho(r.id, "exibicao").exists()
