@@ -1,0 +1,3 @@
+# Detector YOLO (treino e inferência). Instale após requirements.txt.
+# Para CPU: pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+ultralytics>=8.3

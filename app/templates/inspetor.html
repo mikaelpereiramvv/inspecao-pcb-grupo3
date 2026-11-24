@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block titulo %}Inspeção{% endblock %}
+{% block conteudo %}
+<div class="grade">
+  <!-- 1. ENTRADA -->
+  <section class="cartao" aria-labelledby="t-entrada">
+    <h2 id="t-entrada">1. Placa e metadados</h2>
+    <form id="form-insp">
+      <label for="qr">Código QR da placa (LOTE;MODELO;TURNO;POSTO;ETAPA)</label>
+      <input id="qr" placeholder="Leia o QR ou digite" autocomplete="off">
+      <button type="button" class="btn sec largo" id="btn-simular">Simular metadados (protótipo)</button>
+      <label for="lote">Lote *</label><input id="lote" name="lote" required>
+      <label for="modelo_placa">Modelo da placa *</label><input id="modelo_placa" name="modelo_placa" value="HRIPCB" required>
+      <label for="turno">Turno *</label>
+      <select id="turno" name="turno"><option>A</option><option>B</option><option>C</option></select>
+      <label for="posto">Posto *</label><input id="posto" name="posto" value="P01" required>
+      <label for="etapa_origem">Etapa produtiva anterior</label><input id="etapa_origem" name="etapa_origem">
+      <input type="hidden" id="simulado" name="simulado" value="false">
+      <input type="hidden" id="data_hora_producao" name="data_hora_producao">
+      <label for="imagem">Imagem da placa *</label>
+      <input id="imagem" name="imagem" type="file" accept="image/*" required>
+      <button class="btn largo" type="submit" id="btn-inspecionar">Inspecionar</button>
+    </form>
+    <div id="msg-entrada" aria-live="polite"></div>
+  </section>
+
+  <!-- 2/3. IMAGEM ANOTADA -->
+  <section class="cartao" aria-labelledby="t-img">
+    <h2 id="t-img">2. Imagem anotada</h2>
+    <div class="barra-visor">
+      <label for="zoom">Zoom <input id="zoom" type="range" min="1" max="4" step="0.25" value="1"> <span id="zoom-v">100%</span></label>
+      <label><input id="ver-original" type="checkbox"> Ver sem marcações</label>
+      <button type="button" class="btn sec" id="btn-desenhar" disabled aria-pressed="false">+ Marcar defeito não apontado</button>
+      <span class="cronometro" id="crono" title="Janela da linha (~30 s por placa)">30s</span>
+    </div>
+    <div class="visor" id="visor"><div class="vazio" id="vazio">Envie uma imagem para começar.</div>
+      <canvas id="tela" width="600" height="600" hidden aria-label="Imagem da placa com marcações"></canvas></div>
+    <p class="dica">Legenda: <b>linha contínua</b> = defeito com confiança ≥ {{ (cfg.limiar_revisar*100)|round|int }}% ·
+      <b>linha tracejada</b> = confiança baixa · <b>cantos em L</b> = anomalia · <b>azul pontilhado</b> = marcado por você.
+      Para marcar, ative o botão e arraste sobre a imagem.</p>
+  </section>
+
+  <!-- 3. SAÍDA & DECISÃO HUMANA -->
+  <section class="cartao" aria-labelledby="t-dec">
+    <h2 id="t-dec">3. Sua decisão</h2>
+    <div id="sugestao" aria-live="assertive"></div>
+    <div id="avisos"></div>
+    <ol class="marcas" id="marcas" aria-label="Marcações"></ol>
+    <label for="obs">Observação (opcional)</label>
+    <textarea id="obs" rows="2" maxlength="500"></textarea>
+    <div class="decisoes" role="group" aria-label="Decisão do inspetor">
+      <button class="d-aprovar" data-d="APROVAR" disabled>Aprovar<kbd>1</kbd></button>
+      <button class="d-rev1" data-d="REVISAR_1" disabled>Revisar 1ª vez<kbd>2</kbd></button>
+      <button class="d-rev2" data-d="REVISAR_2" disabled>Revisar 2ª vez<kbd>3</kbd></button>
+      <button class="d-reprovar" data-d="REPROVAR" disabled>Reprovar<kbd>4</kbd></button>
+    </div>
+    <p class="lembrete">A decisão final é sempre sua. O sistema só sugere e nunca aprova sozinho.
+      "Revisar 1ª vez" faz uma reanálise rápida (1 vez, &lt; 3 s). "Revisar 2ª vez" envia para análise externa.</p>
+    <div id="msg-decisao" aria-live="polite"></div>
+    <p class="lgpd">Seu código é pseudonimizado e apagado em 90 dias. Os registros aparecem no painel apenas como totais por lote, turno e tipo, nunca por pessoa.</p>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}<script src="/static/inspetor.js"></script>{% endblock %}

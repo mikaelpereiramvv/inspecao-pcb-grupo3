@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block titulo %}Assistente de Inspeção de PCBs{% endblock %} – Grupo 3</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topo">
+  <h1>Assistente de Inspeção Visual de PCBs</h1>
+  <span id="status" class="status" role="status" aria-live="polite">verificando…</span>
+  {% if perfil %}
+  <nav aria-label="Navegação">
+    {% if perfil == 'inspetor' %}<a href="/inspetor">Inspeção</a>{% endif %}
+    {% if perfil in ('supervisor','tecnico') %}<a href="/painel">Painel</a>{% endif %}
+    {% if perfil == 'tecnico' %}<a href="/curadoria">Curadoria</a>{% endif %}
+    <a href="/sair">Sair ({{ perfil }})</a>
+  </nav>
+  {% endif %}
+</header>
+<main>{% block conteudo %}{% endblock %}</main>
+<script>
+const ROTULOS = {{ rotulos|tojson if rotulos else '{}' }};
+const CLASSES = {{ classes|tojson if classes else '[]' }};
+async function api(url, opts = {}) {
+  const r = await fetch(url, opts);
+  let corpo = null;
+  try { corpo = await r.json(); } catch (_) {}
+  if (!r.ok) throw new Error((corpo && corpo.detail) || `Erro ${r.status}`);
+  return corpo;
+}
+{% if perfil %}
+api('/api/status').then(s => {
+  const el = document.getElementById('status');
+  if (s.detector_disponivel) { el.textContent = 'Assistente ativo'; el.className = 'status ok'; }
+  else { el.textContent = 'Contingência: inspeção manual'; el.className = 'status off'; el.title = s.motivo_indisponivel || ''; }
+}).catch(() => {});
+{% else %}
+document.getElementById('status').remove();
+{% endif %}
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>
