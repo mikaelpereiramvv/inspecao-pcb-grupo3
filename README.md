@@ -34,6 +34,12 @@ Protótipo da **Arquitetura v1** descrita no documento *Projeto Final – Primei
 | 5. Gestão & Retorno | Curadoria do Técnico e exportação YOLO para retreino | `app/curation.py`, `/curadoria` |
 | Laço de realimentação | Retreino com as correções curadas | `scripts/treinar_yolo.py` |
 
+| Inspetor | Painel | Curadoria |
+|---|---|---|
+| ![](docs/telas/inspetor.png) | ![](docs/telas/painel.png) | ![](docs/telas/curadoria.png) |
+
+*Telas capturadas com placas sintéticas e um detector simulado, só para ilustrar a interface.*
+
 O mapeamento completo entre cada seção do documento e o código está em [`docs/rastreabilidade.md`](docs/rastreabilidade.md).
 
 ## 2. Como executar
